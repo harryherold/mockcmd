@@ -7,7 +7,7 @@ mod tests {
         let mut cmd = Command::new("echo");
         cmd.arg("hello");
         let output = cmd.output().unwrap();
-        assert_eq!(output.status.success(), true);
+        assert!(output.status.success());
         assert_eq!(output.stdout, b"hello\n");
     }
 }

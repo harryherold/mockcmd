@@ -1,11 +1,21 @@
 use std::{ffi::OsStr, process};
 
+use crate::CommandMockBuilder;
+
 type Result<T = (), E = std::io::Error> = std::result::Result<T, E>;
 
-#[cfg(not(test))]
 pub struct Command(process::Command);
 
-#[cfg(not(test))]
+/// Represents a definition for how a command should be mocked.
+///
+/// This is supposed to only be used in `cfg(test)` scenarios!
+#[derive(Debug, Clone)]
+pub struct MockDefinition;
+
+/// A record of an executed command.
+#[derive(Debug, Clone)]
+pub struct ExecutedCommand;
+
 impl Command {
     pub fn new<S: AsRef<OsStr>>(program: S) -> Self {
         Self(process::Command::new(program))
@@ -100,5 +110,18 @@ impl Command {
     pub fn stdout<T: Into<std::process::Stdio>>(&mut self, cfg: T) -> &mut Self {
         self.0.stdout(cfg);
         self
+    }
+}
+
+/// Returns a copy of all executed commands.
+pub fn get_executed_commands() -> Vec<ExecutedCommand> {
+    // Do nothing when out of cfg(test)
+
+    vec![]
+}
+
+impl CommandMockBuilder {
+    pub fn register(self) {
+        // Do nothing when out of cfg(test)
     }
 }
