@@ -1,4 +1,4 @@
-#[cfg(test)]
+#[cfg(not(feature = "test"))]
 mod tests {
     use mockcmd::Command;
 

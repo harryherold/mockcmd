@@ -116,7 +116,6 @@ impl Command {
 /// Returns a copy of all executed commands.
 pub fn get_executed_commands() -> Vec<ExecutedCommand> {
     // Do nothing when out of cfg(test)
-
     vec![]
 }
 

@@ -47,10 +47,11 @@ pub struct Command {
     args: Vec<OsString>,
 }
 
-#[cfg(test)]
+#[cfg(feature = "test")]
 impl Command {
     pub fn new<S: AsRef<OsStr>>(program: S) -> Self {
         let prog = program.as_ref().to_os_string();
+
         Command {
             inner: process::Command::new(&prog),
             program: prog,
@@ -130,7 +131,7 @@ where
     EXECUTED_COMMANDS.lock().unwrap().push(cmd);
 }
 
-#[cfg(test)]
+#[cfg(feature = "test")]
 /// Returns a copy of all executed commands.
 pub fn get_executed_commands() -> Vec<ExecutedCommand> {
     EXECUTED_COMMANDS.lock().unwrap().clone()
