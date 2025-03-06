@@ -1,7 +1,11 @@
 [package]
 name = "mockcmd"
-version = "0.1.0"
+version = "0.0.1"
 edition = "2021"
+description = "A mockable std::process::Command"
+license = "MIT"
+homepage = "https://github.com/vrmiguel/mockcmd"
+documentation = "https://docs.rs/mockcmd"
 
 [dependencies]
 

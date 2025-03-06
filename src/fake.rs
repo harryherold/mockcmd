@@ -77,7 +77,7 @@ impl Command {
         self
     }
 
-    pub fn output(&mut self) -> Result<process::Output> {
+    fn mock_run(&mut self) -> Result<process::Output> {
         // Record this command invocation
         record_executed_command(&self.program, &self.args);
 
@@ -99,6 +99,14 @@ impl Command {
             stdout,
             stderr,
         })
+    }
+
+    pub fn output(&mut self) -> Result<process::Output> {
+        self.mock_run()
+    }
+
+    pub fn status(&mut self) -> Result<process::ExitStatus> {
+        self.mock_run().map(|output| output.status)
     }
 }
 
