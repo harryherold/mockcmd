@@ -4,10 +4,11 @@ mod tests {
 
     #[test]
     fn using_non_test_code() {
-        let mut cmd = Command::new("echo");
-        cmd.arg("hello");
+        let mut cmd = Command::new("file");
+        cmd.current_dir("/");
+        cmd.arg("etc");
         let output = cmd.output().unwrap();
         assert!(output.status.success());
-        assert_eq!(output.stdout, b"hello\n");
+        assert_eq!(output.stdout, b"etc: directory\n");
     }
 }

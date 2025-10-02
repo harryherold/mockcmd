@@ -19,21 +19,25 @@
 //! ```
 //! use mockcmd::{Command, mock, was_command_executed};
 //!
+//! // Use repository path to set current dir
+//! let path = std::env!("CARGO_MANIFEST_DIR");
+//!
 //! // Setup a mock for the "git" command
 //! mock("git")
+//!     .current_dir(path)
 //!     .with_arg("status")
 //!     .with_stdout("On branch main\nNothing to commit")
 //!     .register();
 //!
 //! // Use the Command just like std::process::Command
-//! let output = Command::new("git").arg("status").output().unwrap();
+//! let output = Command::new("git").current_dir(path).arg("status").output().unwrap();
 //!
 //! // The mock is used instead of executing the real command
 //! assert_eq!(String::from_utf8_lossy(&output.stdout), "On branch main\nNothing to commit");
 //!
 //! // Verify that the command was executed with the correct arguments
-//! assert!(was_command_executed(&["git", "status"]));
-//! assert!(!was_command_executed(&["git", "push"]));
+//! assert!(was_command_executed(&["git", "status"], Some(path)));
+//! assert!(!was_command_executed(&["git", "push"], None));
 //! ```
 //!
 //! ## How It Works
@@ -92,20 +96,22 @@ pub use fake::*;
 #[cfg(feature = "test")]
 #[track_caller]
 /// Panics if `pieces` is empty.
-pub fn was_command_executed(pieces: &[&str]) -> bool {
+pub fn was_command_executed(pieces: &[&str], current_dir: Option<&str>) -> bool {
     use std::ffi::OsStr;
 
     let (program_os, args_os) = pieces.split_first().unwrap();
 
-    get_executed_commands()
-        .iter()
-        .any(|cmd| cmd.program == OsStr::new(program_os) && cmd.args == args_os)
+    let dir = current_dir.map(|s| OsString::from(s));
+
+    get_executed_commands().iter().any(|cmd| {
+        cmd.program == OsStr::new(program_os) && cmd.args == args_os && cmd.current_dir == dir
+    })
 }
 
 #[cfg(not(feature = "test"))]
 #[track_caller]
 /// Panics if `pieces` is empty.
-pub fn was_command_executed(_pieces: &[&str]) -> bool {
+pub fn was_command_executed(_pieces: &[&str], _current_dir: Option<&str>) -> bool {
     panic!("called outside of `cfg(test)` context");
 }
 
@@ -152,6 +158,7 @@ pub struct CommandMockBuilder {
     #[allow(unused)] // actually used when `cfg(test)`
     program: OsString,
     args: Vec<OsString>,
+    current_dir: Option<OsString>,
     exit_status: Option<i32>,
     stdout: Option<Vec<u8>>,
     stderr: Option<Vec<u8>>,
@@ -163,10 +170,17 @@ impl CommandMockBuilder {
         Self {
             program: program.into(),
             args: Vec::new(),
+            current_dir: None,
             exit_status: None,
             stdout: None,
             stderr: None,
         }
+    }
+
+    /// Sets the working directory for the command.
+    pub fn current_dir<S: Into<OsString>>(mut self, dir: S) -> Self {
+        self.current_dir = Some(dir.into());
+        self
     }
 
     /// Sets the command arguments.
@@ -214,6 +228,7 @@ impl CommandMockBuilder {
         MockDefinition {
             program: self.program,
             args: self.args,
+            current_dir: self.current_dir,
             exit_status: self.exit_status,
             stdout: self.stdout,
             stderr: self.stderr,

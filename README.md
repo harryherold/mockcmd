@@ -29,21 +29,24 @@ mockcmd = { version = "*", features = ["test"] }
 ```rust
 use mockcmd::{Command, mock, was_command_executed};
 
+let path = std::env!("CARGO_MANIFEST_DIR");
+
 // Setup a mock for the "git" command
 mock("git")
+    .current_dir(path)
     .with_arg("status")
     .with_stdout("On branch main\nNothing to commit")
     .register();
 
 // Use the Command just like std::process::Command
-let output = Command::new("git").arg("status").output().unwrap();
+let output = Command::new("git").current_dir(path).arg("status").output().unwrap();
 
 // The mock is used instead of executing the real command
 assert_eq!(String::from_utf8_lossy(&output.stdout), "On branch main\nNothing to commit");
 
 // Verify that the command was executed with the correct arguments
-assert!(was_command_executed(&["git", "status"]));
-assert!(!was_command_executed(&["git", "push"]));
+assert!(was_command_executed(&["git", "status"], Some(path)));
+assert!(!was_command_executed(&["git", "push"], None));
 ```
 
 ## How It Works

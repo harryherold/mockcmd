@@ -13,10 +13,14 @@ static MOCK_REGISTRY: Mutex<Vec<MockDefinition>> = Mutex::new(Vec::new());
 /// Stores executed commands
 static EXECUTED_COMMANDS: Mutex<Vec<ExecutedCommand>> = Mutex::new(Vec::new());
 
-pub fn find_mock(program: &OsString, args: &[OsString]) -> Option<MockDefinition> {
+pub fn find_mock(
+    program: &OsString,
+    args: &[OsString],
+    current_dir: &Option<OsString>,
+) -> Option<MockDefinition> {
     let mocks = MOCK_REGISTRY.lock().unwrap();
     for mock in mocks.iter() {
-        if &mock.program == program && mock.args == args {
+        if &mock.program == program && mock.args == args && &mock.current_dir == current_dir {
             return Some(mock.clone());
         }
     }
@@ -29,6 +33,7 @@ pub fn find_mock(program: &OsString, args: &[OsString]) -> Option<MockDefinition
 pub struct MockDefinition {
     pub program: OsString,
     pub args: Vec<OsString>,
+    pub current_dir: Option<OsString>,
     pub exit_status: Option<i32>,
     pub stdout: Option<Vec<u8>>,
     pub stderr: Option<Vec<u8>>,
@@ -39,12 +44,14 @@ pub struct MockDefinition {
 pub struct ExecutedCommand {
     pub program: OsString,
     pub args: Vec<OsString>,
+    pub current_dir: Option<OsString>,
 }
 
 pub struct Command {
     inner: process::Command,
     program: OsString,
     args: Vec<OsString>,
+    current_dir: Option<OsString>,
 }
 
 #[cfg(feature = "test")]
@@ -56,7 +63,14 @@ impl Command {
             inner: process::Command::new(&prog),
             program: prog,
             args: Vec::new(),
+            current_dir: None,
         }
+    }
+
+    pub fn current_dir<S: AsRef<OsStr>>(&mut self, dir: S) -> &mut Self {
+        self.current_dir = Some(dir.as_ref().to_os_string());
+        self.inner.current_dir(dir.as_ref());
+        self
     }
 
     pub fn arg<S: AsRef<OsStr>>(&mut self, arg: S) -> &mut Self {
@@ -79,20 +93,19 @@ impl Command {
 
     fn mock_run(&mut self) -> Result<process::Output> {
         // Record this command invocation
-        record_executed_command(&self.program, &self.args);
+        record_executed_command(&self.program, &self.args, &self.current_dir);
 
-        let (exit_status, stdout, stderr) = if let Some(mock) = find_mock(&self.program, &self.args)
-        {
-            let exit_status = mock.exit_status.unwrap_or(0);
-
-            (
-                exit_status,
-                mock.stdout.unwrap_or_default(),
-                mock.stderr.unwrap_or_default(),
-            )
-        } else {
-            (0, "".into(), "".into())
-        };
+        let (exit_status, stdout, stderr) =
+            if let Some(mock) = find_mock(&self.program, &self.args, &self.current_dir) {
+                let exit_status = mock.exit_status.unwrap_or(0);
+                (
+                    exit_status,
+                    mock.stdout.unwrap_or_default(),
+                    mock.stderr.unwrap_or_default(),
+                )
+            } else {
+                (0, "".into(), "".into())
+            };
 
         Ok(process::Output {
             status: exit_code(exit_status),
@@ -124,7 +137,7 @@ fn exit_code(code: i32) -> process::ExitStatus {
     }
 }
 
-fn record_executed_command<I, S>(program: &OsStr, args: I)
+fn record_executed_command<I, S>(program: &OsStr, args: I, current_dir: &Option<OsString>)
 where
     I: IntoIterator<Item = S>,
     S: AsRef<OsStr>,
@@ -135,6 +148,7 @@ where
             .into_iter()
             .map(|arg| arg.as_ref().to_owned())
             .collect(),
+        current_dir: current_dir.to_owned(),
     };
     EXECUTED_COMMANDS.lock().unwrap().push(cmd);
 }
